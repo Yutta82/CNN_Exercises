@@ -223,7 +223,8 @@ def train():
     model.fit(
         train_dataset,
         epochs=ARGS.epoch,
-        steps_per_epoch=train_feeder.size // 128,  # 计算每epoch步数
+        # 计算每epoch步数
+        steps_per_epoch=train_feeder.size // 128,
         validation_data=test_dataset,
         validation_steps=test_feeder.size // 128,
         callbacks=callbacks
@@ -309,7 +310,7 @@ def get_file_list(path):
     return list_name
 
 
-def main(_):
+def main():
     """程序入口函数"""
     # 根据运行模式调度不同功能
     if ARGS.mode == "train":
@@ -340,5 +341,4 @@ def main(_):
 
 
 if __name__ == "__main__":
-    # 兼容模式运行（适配旧版TensorFlow）
-    tf.compat.v1.app.run()
+    main()

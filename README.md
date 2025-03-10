@@ -1,6 +1,6 @@
 # 这是一个卷积神经网络的练习库
 目前有两个项目：
-1. 基于TensorFlow框架与Chest X-Ray Images (Pneumonia)数据集的肺炎诊断
+1. 基于TensorFlow框架与[Chest X-Ray Images (Pneumonia)](https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia)数据集的肺炎诊断
 
    关于模型：
    1. 选择简单的架构
@@ -70,7 +70,7 @@
    _________________________________________________________________ 
    ```
 
-2. 基于TensorFlow框架与中科院自动化研究所的手写汉字数据集的手写汉字识别
+2. 基于TensorFlow框架与[中科院自动化研究所的手写汉字数据集](http://www.nlpr.ia.ac.cn/databases/download/feature_data/HWDB1.1trn_gnt.zip)的手写汉字识别
    
    网络结构：
    ```text
