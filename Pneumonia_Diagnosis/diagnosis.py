@@ -296,7 +296,7 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
     model.compile(loss='binary_crossentropy', metrics=['accuracy'], optimizer=opt)
     train_gen = data_generator(train_data, batch_size)
     model_checkpoint = ModelCheckpoint(
-        filepath='./check/final_model.keras',
+        filepath='./checkpoint/final_model.keras',
         monitor='accuracy',
         mode='max',  # 选择最高的准确率
         verbose=1,
@@ -375,7 +375,7 @@ def predict():
         image_set.append(temp_image)
 
     # 加载训练好的模型
-    model = load_model(os.path.join('./checkpoint', 'final_model.keras'))
+    model = load_model(r'./checkpoint/final_model.keras')
     # 批量预测
     predictions = model.predict(np.vstack(image_set))
     # 输出预测结果
