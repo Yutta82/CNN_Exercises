@@ -2,7 +2,6 @@
 import os
 from pathlib import Path
 
-import cv2
 import imgaug as aug
 import imgaug.augmenters as iaa
 import matplotlib.pyplot as plt
@@ -33,7 +32,6 @@ def set_random_seed():
     """设置随机种子以确保结果可重复性。
 
     Args:
-        无参数。
 
     Returns:
         无返回值。
@@ -114,12 +112,10 @@ def process_images(image_paths, label):
     data = []
     labels = []
     for img_path in image_paths:
-        img = cv2.imread(str(img_path))
-        img = cv2.resize(img, (224, 224))
-        if img.shape[2] == 1:
-            img = np.dstack([img, img, img])
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = img.astype(np.float32) / 255.
+        img = Image.open(str(img_path)).convert('RGB')
+        img = img.resize((224, 224))
+        # 转换为 numpy 数组并归一化
+        img = np.asarray(img, dtype=np.float32) / 255.0
         encoded_label = to_categorical(label, num_classes=2)
         data.append(img)
         labels.append(encoded_label)
@@ -207,23 +203,17 @@ def data_generator(data, batch_size):
             label = data.iloc[idx]['label']
             encoded_label = to_categorical(label, num_classes=2)
             # 读取图像并调整大小
-            img = cv2.imread(str(img_name))
-            img = cv2.resize(img, (224, 224))
-            # 检查是否是灰度
-            if img.shape[2] == 1:
-                img = np.dstack([img, img, img])
-            # cv2 默认以 BGR 模式读取
-            orig_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            # 标准化图像像素
-            orig_img = orig_img.astype(np.float32) / 255.
+            img = Image.open(img_name).convert('RGB')
+            img = img.resize((224, 224))
+            # 转换为 numpy 数组并归一化
+            orig_img = np.asarray(img, dtype=np.float32) / 255.0
             batch_data[count] = orig_img
             batch_labels[count] = encoded_label
             # 对正常样本进行增强
             if label == 0 and count < batch_size - 2:
-                aug_img1 = seq.augment_image(img)
-                aug_img2 = seq.augment_image(img)
-                aug_img1 = cv2.cvtColor(aug_img1, cv2.COLOR_BGR2RGB)
-                aug_img2 = cv2.cvtColor(aug_img2, cv2.COLOR_BGR2RGB)
+                # 增强需要 numpy 数组
+                aug_img1 = seq.augment_image(np.asarray(img))
+                aug_img2 = seq.augment_image(np.asarray(img))
                 aug_img1 = aug_img1.astype(np.float32) / 255.
                 aug_img2 = aug_img2.astype(np.float32) / 255.
                 batch_data[count + 1] = aug_img1
@@ -327,13 +317,19 @@ def validate_model(model, test_data, test_labels):
     print("测试集损失: ", test_loss)
     print("测试集准确率: ", test_score)
 
-    preds = model.predict(test_data, batch_size=16)
-    preds = np.argmax(preds, axis=-1)
+    predicts = model.predict(test_data, batch_size=16)
+    predicts = np.argmax(predicts, axis=-1)
     orig_test_labels = np.argmax(test_labels, axis=-1)
 
-    cm = confusion_matrix(orig_test_labels, preds)
+    cm = confusion_matrix(orig_test_labels, predicts)
     plt.figure()
-    plot_confusion_matrix(cm, figsize=(12, 8), hide_ticks=True, fontcolor_threshold=0.7, cmap=plt.cm.Blues)
+    plot_confusion_matrix(
+        cm,
+        figsize=(12, 8),
+        hide_ticks=True,
+        fontcolor_threshold=0.7,
+        cmap=plt.colormaps.get_cmap("Blues")
+    )
     plt.xticks(range(2), ['Normal', 'Pneumonia'], fontsize=16)
     plt.yticks(range(2), ['Normal', 'Pneumonia'], fontsize=16)
     plt.show()
@@ -350,7 +346,6 @@ def predict():
     使用训练好的模型对输入的胸部X光图像进行预测，并显示结果。
 
     Args:
-        无参数
 
     Returns:
         np.ndarray: 预测结果数组，每个预测结果为一个包含各类别预测概率的数组
