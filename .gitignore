@@ -1,2 +1,7 @@
 /.idea
 /Handwritten_Chinese_Character_Recognition/dataset
+/Handwritten_Chinese_Character_Recognition/checkpoint
+/Pneumonia_Diagnosis/dataset
+/Pneumonia_Diagnosis/checkpoint
+/Neuronal_Structural_Segmentation/dataset
+/Neuronal_Structural_Segmentation/checkpoint

@@ -18,8 +18,6 @@
     },
     "model": {
         "checkpoint_dir": "./checkpoint/",
-        "log_dir": "./log",
-        "restore": false,
-        "mode": "train"
+        "mode": "inference"
     }
 }

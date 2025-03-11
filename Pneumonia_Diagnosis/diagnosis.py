@@ -1,29 +1,32 @@
 # 导入必要的库
-import os  # 用于文件和目录操作
-from pathlib import Path  # 用于路径操作
-import cv2  # 用于图像处理
-import imgaug as aug  # 用于图像增强
-import imgaug.augmenters as iaa  # 用于图像增强的具体操作
-import matplotlib.pyplot as plt  # 用于绘图
-import numpy as np  # 用于数值计算
-import pandas as pd  # 用于数据处理
-import seaborn as sns  # 用于数据可视化
-import tensorflow as tf  # 用于 TensorFlow 操作
-from keras import backend as K  # 用于 Keras 后端操作
-from keras.layers import Conv2D, MaxPooling2D, Dense, Dropout, Input, Flatten, SeparableConv2D  # 用于构建神经网络层
-from keras.layers.normalization import BatchNormalization  # 用于批归一化
-from keras.models import Model  # 用于构建神经网络模型
+import os
+from pathlib import Path
+
+import cv2
+import imgaug as aug
+import imgaug.augmenters as iaa
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import tensorflow as tf
+from PIL import Image
+from keras.callbacks import ModelCheckpoint
+from keras.layers import Conv2D, MaxPooling2D, Dense, Dropout, Input, Flatten, SeparableConv2D, BatchNormalization
+from keras.models import Model, load_model  # 用于构建神经网络模型
 from keras.optimizers import Adam  # 用于优化器
 from keras.utils import to_categorical  # 用于独热编码
 from mlxtend.plotting import plot_confusion_matrix  # 用于绘制混淆矩阵
 from skimage.io import imread  # 用于读取图像
 from sklearn.metrics import confusion_matrix  # 用于计算混淆矩阵
 
+np.bool = bool  # 为兼容性定义 np.bool
+
 # 设置 matplotlib 的颜色
 color = sns.color_palette()
 
 # 打印输入目录中的文件
-print(os.listdir("../input"))
+print(os.listdir("./input"))
 
 
 def set_random_seed():
@@ -39,14 +42,8 @@ def set_random_seed():
     os.environ['PYTHONHASHSEED'] = '0'
     # 设置 NumPy 随机种子
     np.random.seed(111)
-    # 配置 TensorFlow 会话，禁用多线程
-    session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
     # 设置 TensorFlow 2.X 随机种子
     tf.random.set_seed(111)
-    # 创建 TensorFlow 会话
-    sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
-    # 设置 Keras 会话
-    K.set_session(sess)
     # 设置图像增强的随机种子
     aug.seed(111)
 
@@ -145,10 +142,10 @@ def visualize_data(train_data):
     # 绘制条形图
     plt.figure(figsize=(10, 8))
     sns.barplot(x=cases_count.index, y=cases_count.values)
-    plt.title('病例数量', fontsize=14)
-    plt.xlabel('病例类型', fontsize=12)
-    plt.ylabel('数量', fontsize=12)
-    plt.xticks(range(len(cases_count.index)), ['正常(0)', '肺炎(1)'])
+    plt.title('Number of cases', fontsize=14)
+    plt.xlabel('Case type', fontsize=12)
+    plt.ylabel('Count', fontsize=12)
+    plt.xticks(range(len(cases_count.index)), ['Normal(0)', 'Pneumonia(1)'])
     plt.show()
 
     # 获取样本图像
@@ -162,9 +159,9 @@ def visualize_data(train_data):
         img = imread(samples[i])
         ax[i // 5, i % 5].imshow(img, cmap='gray')
         if i < 5:
-            ax[i // 5, i % 5].set_title("肺炎")
+            ax[i // 5, i % 5].set_title("Pneumonia")
         else:
-            ax[i // 5, i % 5].set_title("正常")
+            ax[i // 5, i % 5].set_title("Normal")
         ax[i // 5, i % 5].axis('off')
         ax[i // 5, i % 5].set_aspect('auto')
     plt.show()
@@ -293,17 +290,28 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
     Returns:
         无返回值。
     """
+    print("train")
     # Adam 优化器
-    opt = Adam(lr=0.0001, decay=1e-5)
+    opt = Adam(learning_rate=0.0001, decay=1e-5)
     model.compile(loss='binary_crossentropy', metrics=['accuracy'], optimizer=opt)
     train_gen = data_generator(train_data, batch_size)
-    model.fit(train_gen,
-              steps_per_epoch=len(train_data) // batch_size,
-              epochs=epochs,
-              validation_data=(valid_data, valid_labels))
+    model_checkpoint = ModelCheckpoint(
+        filepath='./check/final_model.keras',
+        monitor='accuracy',
+        mode='max',  # 选择最高的准确率
+        verbose=1,
+        save_best_only=True
+    )
+    model.fit(
+        train_gen,
+        steps_per_epoch=len(train_data) // batch_size,
+        epochs=epochs,
+        validation_data=(valid_data, valid_labels),
+        callbacks=[model_checkpoint]  # 在回调时保存模型
+    )
 
 
-def evaluate_model(model, test_data, test_labels):
+def validate_model(model, test_data, test_labels):
     """评估模型并可视化结果。
 
     Args:
@@ -314,6 +322,7 @@ def evaluate_model(model, test_data, test_labels):
     Returns:
         无返回值。
     """
+    print("validate_model")
     test_loss, test_score = model.evaluate(test_data, test_labels, batch_size=16)
     print("测试集损失: ", test_loss)
     print("测试集准确率: ", test_score)
@@ -324,9 +333,9 @@ def evaluate_model(model, test_data, test_labels):
 
     cm = confusion_matrix(orig_test_labels, preds)
     plt.figure()
-    plot_confusion_matrix(cm, figsize=(12, 8), hide_ticks=True, alpha=0.7, cmap=plt.cm.Blues)
-    plt.xticks(range(2), ['正常', '肺炎'], fontsize=16)
-    plt.yticks(range(2), ['正常', '肺炎'], fontsize=16)
+    plot_confusion_matrix(cm, figsize=(12, 8), hide_ticks=True, fontcolor_threshold=0.7, cmap=plt.cm.Blues)
+    plt.xticks(range(2), ['Normal', 'Pneumonia'], fontsize=16)
+    plt.yticks(range(2), ['Normal', 'Pneumonia'], fontsize=16)
     plt.show()
 
     tn, fp, fn, tp = cm.ravel()
@@ -334,6 +343,50 @@ def evaluate_model(model, test_data, test_labels):
     recall = tp / (tp + fn)
     print("模型的召回率: {:.2f}".format(recall))
     print("模型的精确率: {:.2f}".format(precision))
+
+
+def predict():
+    """
+    使用训练好的模型对输入的胸部X光图像进行预测，并显示结果。
+
+    Args:
+        无参数
+
+    Returns:
+        np.ndarray: 预测结果数组，每个预测结果为一个包含各类别预测概率的数组
+    """
+    print("predict")
+    # 定义标签字典
+    label_dict = {0: 'Normal', 1: 'Pneumonia'}
+    image_set = []
+    image_size = 224  # 模型输入尺寸
+    input_list = r"./input"
+
+    # 对每张图像进行预处理
+    for image_path in input_list:
+        # 打开图像并转换为 RGB 模式
+        temp_image = Image.open(image_path).convert('RGB')
+        # 调整图像尺寸
+        temp_image = temp_image.resize((image_size, image_size), Image.Resampling.LANCZOS)
+        # 转换为 numpy 数组并归一化到 [0, 1]
+        temp_image = np.asarray(temp_image, dtype=np.float32) / 255.0
+        # 调整维度以匹配模型输入 (1, 224, 224, 3)
+        temp_image = temp_image.reshape((1, image_size, image_size, 3))
+        image_set.append(temp_image)
+
+    # 加载训练好的模型
+    model = load_model(os.path.join('./checkpoint', 'final_model.keras'))
+    # 批量预测
+    predictions = model.predict(np.vstack(image_set))
+    # 输出预测结果
+    for i, pred in enumerate(predictions):
+        prob_normal = pred[0]
+        prob_pneumonia = pred[1]
+        most_likely = label_dict[0] if prob_normal >= prob_pneumonia else label_dict[1]
+        # 输出可读结果
+        print(f'[Result] Image: {input_list[i]}, '
+              f'Normal: {prob_normal:.4f}, Pneumonia: {prob_pneumonia:.4f}, '
+              f'Most Likely: {most_likely}')
 
 
 def main():
@@ -345,31 +398,32 @@ def main():
     Returns:
         无返回值。
     """
+    mode = 'train'
     # 设置随机种子
     set_random_seed()
-
     # 定义数据目录路径
     data_dir = Path('./dataset')
-
     # 加载数据
     train_data, valid_data, valid_labels, test_data, test_labels = load_data(data_dir)
-    print("验证样本总数: ", valid_data.shape)
-    print("标签总数: ", valid_labels.shape)
-    print("测试样本总数: ", test_data.shape)
-    print("标签总数: ", test_labels.shape)
-
+    # print("验证样本总数: ", valid_data.shape)
+    # print("标签总数: ", valid_labels.shape)
+    # print("测试样本总数: ", test_data.shape)
+    # print("标签总数: ", test_labels.shape)
     # 可视化训练数据
-    visualize_data(train_data)
+    # visualize_data(train_data)
 
-    # 构建并显示模型
-    model = build_model()
-    model.summary()
-
-    # 编译和训练模型
-    compile_and_train(model, train_data, valid_data, valid_labels, batch_size=16, epochs=10)
-
-    # 评估模型
-    evaluate_model(model, test_data, test_labels)
+    if mode == 'train':
+        # 构建并显示模型
+        model = build_model()
+        # model.summary()
+        # 编译和训练模型
+        compile_and_train(model, train_data, valid_data, valid_labels, batch_size=16, epochs=10)
+    elif mode == 'validate':
+        model = load_model(r'./checkpoint/final_model.keras')
+        # 评估模型
+        validate_model(model, test_data, test_labels)
+    elif mode == 'predict':
+        predict()
 
 
 if __name__ == '__main__':

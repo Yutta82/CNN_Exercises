@@ -1,6 +1,5 @@
 import argparse
 import json
-import logging
 import os
 import pickle
 import random
@@ -8,17 +7,9 @@ import random
 import numpy as np
 import tensorflow as tf
 from PIL import Image
-
-# 创建日志记录器实例
-logger = logging.getLogger('Training the chinese write handling char recognition')
-# 设置日志记录级别为INFO
-logger.setLevel(logging.INFO)
-# 创建控制台日志处理器
-ch = logging.StreamHandler()
-# 设置处理器日志级别
-ch.setLevel(logging.INFO)
-# 将处理器添加到日志记录器
-logger.addHandler(ch)
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.layers import Conv2D, MaxPooling2D, Dense, Dropout, Input, Flatten
+from keras.models import Model, load_model
 
 
 def load_config():
@@ -166,25 +157,25 @@ def build_model():
         tf.keras.Model: 配置好的Keras模型
     """
     # 输入层（64x64灰度图像）
-    inputs = tf.keras.Input(shape=(64, 64, 1), name='image_batch')
+    inputs = Input(shape=(64, 64, 1), name='image_batch')
     # 第一卷积块
-    x = tf.keras.layers.Conv2D(64, (3, 3), padding='same', activation='relu', name='conv1')(inputs)
-    x = tf.keras.layers.MaxPooling2D((2, 2), padding='same')(x)
+    x = Conv2D(64, (3, 3), padding='same', activation='relu', name='conv1')(inputs)
+    x = MaxPooling2D((2, 2), padding='same')(x)
     # 第二卷积块
-    x = tf.keras.layers.Conv2D(128, (3, 3), padding='same', activation='relu', name='conv2')(x)
-    x = tf.keras.layers.MaxPooling2D((2, 2), padding='same')(x)
+    x = Conv2D(128, (3, 3), padding='same', activation='relu', name='conv2')(x)
+    x = MaxPooling2D((2, 2), padding='same')(x)
     # 第三卷积块
-    x = tf.keras.layers.Conv2D(256, (3, 3), padding='same', activation='relu', name='conv3')(x)
-    x = tf.keras.layers.MaxPooling2D((2, 2), padding='same')(x)
+    x = Conv2D(256, (3, 3), padding='same', activation='relu', name='conv3')(x)
+    x = MaxPooling2D((2, 2), padding='same')(x)
     # 展平层
-    x = tf.keras.layers.Flatten()(x)
+    x = Flatten()(x)
     # 全连接层
-    x = tf.keras.layers.Dense(1024, activation='tanh', name='fc1')(x)
+    x = Dense(1024, activation='tanh', name='fc1')(x)
     # Dropout层防止过拟合
-    x = tf.keras.layers.Dropout(0.5)(x)
+    x = Dropout(0.5)(x)
     # 输出层（使用softmax激活）
-    outputs = tf.keras.layers.Dense(ARGS.charset_size, activation='softmax', name='fc2')(x)
-    return tf.keras.Model(inputs=inputs, outputs=outputs)
+    outputs = Dense(ARGS.charset_size, activation='softmax', name='fc2')(x)
+    return Model(inputs=inputs, outputs=outputs)
 
 
 def train():
@@ -208,15 +199,17 @@ def train():
 
     # 训练回调函数配置
     callbacks = [
-        # TensorBoard日志记录
-        tf.keras.callbacks.TensorBoard(log_dir=ARGS.log_dir),
         # 模型检查点保存
-        tf.keras.callbacks.ModelCheckpoint(
-            filepath=os.path.join(ARGS.checkpoint_dir, 'model-{epoch:02d}.h5'),
-            save_freq=ARGS.save_steps
+        ModelCheckpoint(
+            filepath=os.path.join(ARGS.checkpoint_dir, 'model-{epoch:02d}.keras'),
+            monitor='accuracy',
+            mode='max',  # 选择最高的准确率
+            verbose=1,  # 训练过程中输出日志
+            save_freq=ARGS.save_steps,
+            save_best_only=True,  # 仅保存最优模型
         ),
         # 早停机制
-        tf.keras.callbacks.EarlyStopping(patience=10, monitor='val_loss')
+        EarlyStopping(patience=10, monitor='val_loss')
     ]
 
     # 开始模型训练
@@ -227,11 +220,8 @@ def train():
         steps_per_epoch=train_feeder.size // 128,
         validation_data=test_dataset,
         validation_steps=test_feeder.size // 128,
-        callbacks=callbacks
+        callbacks=callbacks  # 在回调时保存模型
     )
-
-    # 保存最终模型
-    model.save(os.path.join(ARGS.checkpoint_dir, 'final_model.h5'))
 
 
 def validation():
@@ -242,26 +232,32 @@ def validation():
     test_dataset = test_feeder.input_pipeline(batch_size=128)
 
     # 加载训练好的模型
-    model = tf.keras.models.load_model(os.path.join(ARGS.checkpoint_dir, 'final_model.h5'))
+    model = load_model(os.path.join(ARGS.checkpoint_dir, 'model-01.keras'))
     # 评估模型性能
     results = model.evaluate(test_dataset)
     # 记录评估结果
-    logger.info(f'Validation loss: {results[0]}, accuracy: {results[1]}')
+    print(f'Validation loss: {results[0]}, accuracy: {results[1]}')
 
 
-def inference(name_list):
+def inference():
     """执行推理预测
 
     Args:
-        name_list (list): 图像路径列表
+        input_list (list): 图像路径列表
 
     Returns:
         list: 预测结果列表
     """
     print('Inference')
+    # 加载标签字典
+    label_dict = get_label_dict()
+
+    # 获取待预测文件列表
+    input_list = get_file_list('./input')
+
     image_set = []
     # 预处理每个图像
-    for image in name_list:
+    for image in input_list:
         # 打开并转换图像为灰度
         temp_image = Image.open(image).convert('L')
         # 调整图像尺寸
@@ -273,10 +269,26 @@ def inference(name_list):
         image_set.append(temp_image)
 
     # 加载训练好的模型
-    model = tf.keras.models.load_model(os.path.join(ARGS.checkpoint_dir, 'final_model.h5'))
+    model = load_model(os.path.join(ARGS.checkpoint_dir, 'model-01.keras'))
     # 批量预测
     predictions = model.predict(np.vstack(image_set))
-    return predictions
+    # 输出预测结果
+    for i, pred in enumerate(predictions):
+        # 获取top3预测结果
+        top3_indices = np.argsort(pred)[-3:][::-1]
+        top3_values = pred[top3_indices]
+        # 记录原始预测信息
+        print(f'Image: {input_list[i]}, '
+              f'Top 3 predictions: {top3_indices}, '
+              f'Values: {top3_values}')
+        # 解析预测结果
+        candidate1 = top3_indices[0]
+        candidate2 = top3_indices[1]
+        candidate3 = top3_indices[2]
+        # 输出可读结果
+        print(f'[Result] Image: {input_list[i]}, '
+              f'Predict: {label_dict[candidate1]} {label_dict[candidate2]} {label_dict[candidate3]}, '
+              f'Most Likely: {label_dict[candidate1]}')
 
 
 def get_label_dict():
@@ -285,7 +297,7 @@ def get_label_dict():
     Returns:
         dict: 标签到汉字的映射字典
     """
-    with open('./chinese_labels', 'rb') as f:
+    with open('./char_dict', 'rb') as f:
         label_dict = pickle.load(f)
     return label_dict
 
@@ -318,26 +330,8 @@ def main():
     elif ARGS.mode == 'validation':
         validation()
     elif ARGS.mode == 'inference':
-        # 加载标签字典
-        label_dict = get_label_dict()
-        # 获取待预测文件列表
-        name_list = get_file_list('./tmp')
         # 执行推理
-        predictions = inference(name_list)
-        # 输出预测结果
-        for i, pred in enumerate(predictions):
-            # 获取top3预测结果
-            top3_indices = np.argsort(pred)[-3:][::-1]
-            top3_values = pred[top3_indices]
-            # 记录原始预测信息
-            logger.info(f'Image: {name_list[i]}, Top 3 predictions: {top3_indices}, values: {top3_values}')
-            # 解析预测结果
-            candidate1 = top3_indices[0]
-            candidate2 = top3_indices[1]
-            candidate3 = top3_indices[2]
-            # 输出可读结果
-            logger.info(f'[Result] Image: {name_list[i]}, Predict: {label_dict[candidate1]} '
-                        f'{label_dict[candidate2]} {label_dict[candidate3]}')
+        inference()
 
 
 if __name__ == "__main__":
