@@ -10,6 +10,7 @@ from PIL import Image
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import Conv2D, MaxPooling2D, Dense, Dropout, Input, Flatten
 from keras.models import Model, load_model
+from matplotlib import pyplot as plt
 
 
 def load_config():
@@ -213,7 +214,7 @@ def train():
     ]
 
     # 开始模型训练
-    model.fit(
+    history = model.fit(
         train_dataset,
         epochs=ARGS.epoch,
         # 计算每epoch步数
@@ -222,6 +223,36 @@ def train():
         validation_steps=test_feeder.size // 128,
         callbacks=callbacks  # 在回调时保存模型
     )
+
+    # 获取训练过程中的数据
+    train_loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    train_acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+    epochs_range = range(1, ARGS.epoch + 1)
+
+    # 绘制损失和准确率曲线
+    plt.figure(figsize=(8, 6))
+
+    # 绘制损失曲线
+    plt.plot(epochs_range, train_loss, 'r-', label='Train Loss')  # 红色实线
+    plt.plot(epochs_range, val_loss, 'r--', label='Validation Loss')  # 红色虚线
+
+    # 绘制准确率曲线
+    plt.plot(epochs_range, train_acc, 'b-', label='Train Accuracy')  # 蓝色实线
+    plt.plot(epochs_range, val_acc, 'b--', label='Validation Accuracy')  # 蓝色虚线
+
+    # 设置图例、坐标轴标签和标题
+    plt.legend()
+    plt.xlabel('Epochs')
+    plt.ylabel('Value')
+    plt.title('Training & Validation Loss and Accuracy')
+    plt.grid(True)
+    # 保存 loss accuracy 变化图
+    plot_path = os.path.join(ARGS.checkpoint_dir, 'img.png')
+    plt.savefig(plot_path)
+    print(f"Training curve saved to {plot_path}")
+    plt.show()
 
 
 def validation():

@@ -136,19 +136,19 @@ class Augmentation:
             yield self.adjust(image, mask, flag_multi_class, num_class)
 
     @staticmethod
-    def test_generator(test_path, num_image=30, target_size=(256, 256), flag_multi_class=False, as_gray=True):
+    def test_generator(test_path, num, target_size=(256, 256), flag_multi_class=False, as_gray=True):
         """
         测试数据生成器，用于生成符合模型输入要求的测试图像。
 
         :param test_path: 测试图像所在的目录
-        :param num_image: 需要生成的测试图像数量
+        :param num: 需要测试的图片的编号
         :param target_size: 图像调整后的目标尺寸
         :param flag_multi_class: 是否为多类别任务
         :param as_gray: 是否以灰度模式加载图像
         :return: 一个生成器，依次返回归一化且调整尺寸后的测试图像
         """
         # 遍历指定数量的测试图像
-        for i in range(num_image):
+        for i in num:
             # 构造图像文件路径并读取图像，as_gray 指定是否以灰度图像加载
             image = io.imread(os.path.join(test_path, f'{i}.png'), as_gray=as_gray)
             # 将图像归一化到 [0,1]
@@ -160,7 +160,7 @@ class Augmentation:
             # 为图像添加 batch 维度，变为 (1, height, width, channels)
             image = np.reshape(image, (1,) + image.shape)
             # 生成处理后的图像
-            yield image
+            yield (image,)
 
     @staticmethod
     def label_visualize(num_class, color_dict, image):
@@ -182,10 +182,11 @@ class Augmentation:
         # 返回归一化后的彩色图像
         return image_out / 255
 
-    def save_result(self, save_path, npy_file, flag_multi_class=False, num_class=2):
+    def save_result(self, save_path, npy_file, num, flag_multi_class=False, num_class=2):
         """
         保存预测得到的 mask 结果到指定目录。
 
+        :param num: 随机数序列
         :param save_path: 结果保存目录
         :param npy_file: 存放预测结果的 numpy 数组（每个元素为一个 mask）
         :param flag_multi_class: 是否为多类别任务
@@ -197,7 +198,7 @@ class Augmentation:
             # 如果为多类别任务，则先将 mask 进行颜色可视化，否则取 mask 的第一个通道
             image = self.label_visualize(num_class, self.color_dict_, item) if flag_multi_class else item[:, :, 0]
             # 保存处理后的图像到指定路径，文件名格式为 "{索引}_predict.png"
-            io.imsave(os.path.join(save_path, f"{i}_predict.png"), img_as_ubyte(image))
+            io.imsave(os.path.join(save_path, f"{num[i]}_predict.png"), img_as_ubyte(image))
 
     def generator_train_npy(self, image_path, mask_path, flag_multi_class=False, num_class=2, image_prefix='image',
                             mask_prefix='mask', image_as_gray=True, mask_as_gray=True):

@@ -1,14 +1,14 @@
-from utils.run import train
 from utils.decorator_time import display_time
+from utils.run import *
 
 
 @display_time(text="total consume")
 def main():
-    """
-    主函数
-    :return: 0
-    """
-    train()
+    mode = 'predict'
+    if mode == 'train':
+        train()
+    elif mode == 'predict':
+        predict()
 
 
 if __name__ == '__main__':

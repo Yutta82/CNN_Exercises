@@ -292,13 +292,43 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
         verbose=1,
         save_best_only=True
     )
-    model.fit(
+    history = model.fit(
         train_gen,
         steps_per_epoch=len(train_data) // batch_size,
         epochs=epochs,
-        validation_data=(valid_data, valid_labels),
+        validation_data=(valid_data, valid_labels),  # 训练时不验证
         callbacks=[model_checkpoint]  # 在回调时保存模型
     )
+
+    # 获取 loss 和 accuracy 数据
+    train_loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    train_acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+    epochs_range = range(1, epochs + 1)
+
+    # 绘制 loss 和 accuracy 曲线
+    plt.figure(figsize=(8, 6))
+
+    # 绘制 loss 相关曲线
+    plt.plot(epochs_range, train_loss, 'r-', label='Train Loss')  # 红色实线
+    plt.plot(epochs_range, val_loss, 'r--', label='Val Loss')  # 红色虚线
+
+    # 绘制 accuracy 相关曲线
+    plt.plot(epochs_range, train_acc, 'b-', label='Train Accuracy')  # 蓝色实线
+    plt.plot(epochs_range, val_acc, 'b--', label='Val Accuracy')  # 蓝色虚线
+
+    # 设置图例、标题和坐标轴标签
+    plt.legend()
+    plt.xlabel("Epochs")
+    plt.ylabel("Value")
+    plt.title("Training & Validation Loss and Accuracy")
+    plt.grid(True)
+    # 保存 loss accuracy 变化图
+    plot_path = os.path.join(r"./checkpoint", 'img.png')
+    plt.savefig(plot_path)
+    print(f"Training curve saved to {plot_path}")
+    plt.show()
 
 
 def validate_model(model, test_data, test_labels):
@@ -355,7 +385,8 @@ def predict():
     label_dict = {0: 'Normal', 1: 'Pneumonia'}
     image_set = []
     image_size = 224  # 模型输入尺寸
-    input_list = r"./input"
+    input_dir = r"./input"
+    input_list = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if f.endswith('.jpeg')]
 
     # 对每张图像进行预处理
     for image_path in input_list:
@@ -393,7 +424,7 @@ def main():
     Returns:
         无返回值。
     """
-    mode = 'train'
+    mode = 'predict'
     # 设置随机种子
     set_random_seed()
     # 定义数据目录路径

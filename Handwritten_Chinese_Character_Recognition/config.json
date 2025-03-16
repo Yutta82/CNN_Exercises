@@ -10,7 +10,7 @@
         "max_steps": 12002,
         "eval_steps": 50,
         "save_steps": 2000,
-        "epoch": 1,
+        "epoch": 10,
         "batch_size": 128,
         "random_flip_up_down": false,
         "random_brightness": true,
