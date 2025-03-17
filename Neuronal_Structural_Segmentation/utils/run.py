@@ -26,17 +26,23 @@ def build_args():
     ap.add_argument('-a', '--train', required=False, default='dataset/train/', help='path to train data set')
     # 添加参数 -t / --test，指定测试数据集路径
     ap.add_argument('-t', '--test', required=False, default='dataset/test/', help='path to test data set')
+    # 添加参数 -v / --val，指定验证数据集路径
+    ap.add_argument('-v', '--val', required=False, default='dataset/val/', help='path to val data set')
     # 添加参数 -s / --steps，指定每个 epoch 的步数，类型为 int，默认值为 30
     ap.add_argument('-s', '--steps', required=False, type=int, default=30, help='steps per epoch for train')
     # 添加参数 -e / --epochs，指定训练轮数，类型为 int，默认值为 5
     ap.add_argument('-e', '--epochs', required=False, type=int, default=60, help='epochs for train model')
+    # 添加参数 -m / --mode，指定运行方式
+    ap.add_argument('-m', '--mode', required=False, choices=['train', 'predict'], default='train', help='model type')
+    # 添加参数 -n / --number，指定预测图片的数目，仅在预测时使用
+    ap.add_argument('-n', '--number', required=False, type=int, default=5, help='number of images')
     # 解析命令行参数，并将解析结果转换为字典格式
     args = vars(ap.parse_args())
     # 返回参数字典
     return args
 
 
-def train():
+def train(args):
     """
     模型训练函数。
     使用数据增强生成器生成训练数据，并在 MirroredStrategy 下训练 U-Net 模型，
@@ -44,8 +50,6 @@ def train():
 
     :return: None
     """
-    # 调用 build_args() 函数获取命令行参数字典
-    args = build_args()
     # 定义数据增强参数字典
     data_gen_args = dict(
         rotation_range=0.2,  # 随机旋转范围
@@ -68,6 +72,16 @@ def train():
         save_to_dir=None  # 不保存增强后的图像
     )
 
+    # 验证数据生成器
+    val_generator = aug.train_generator(
+        batch_size=1,
+        train_path=args['val'],
+        images_folder='images',
+        masks_folder='labels',
+        aug_dict={},  # 验证集不进行数据增强
+        save_to_dir=None
+    )
+
     model = u_net()
     # 创建 ModelCheckpoint 回调，用于在训练过程中保存损失最低的模型
     model_checkpoint = ModelCheckpoint(
@@ -81,23 +95,37 @@ def train():
         generator,  # 训练数据生成器
         steps_per_epoch=args['steps'],  # 每个 epoch 的步数
         epochs=args['epochs'],  # 训练的总轮数
+        validation_data=val_generator,
+        validation_steps=6,
         callbacks=[model_checkpoint]  # 使用回调函数保存最佳模型
     )
 
-    # 绘制 train loss 和 val loss 随 epoch 变化的图
-    plt.figure(figsize=(10, 6))
-    plt.plot(history.history['loss'], label='Train Loss')
-    plt.title('Train Loss and Validation Loss per Epoch')
+    # 绘制 train loss、val loss、train accuracy 和 val accuracy 曲线
+    # 获取训练过程中的数据
+    train_loss = history.history['loss']
+    val_loss = history.history['val_loss']
+    train_acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+    epochs_range = range(1, args['epochs'] + 1)
+    # 绘制损失和准确率曲线
+    plt.figure(figsize=(8, 6))
+    # 绘制损失曲线
+    plt.plot(epochs_range, train_loss, 'r-', label='Train Loss')  # 红色实线
+    plt.plot(epochs_range, val_loss, 'r--', label='Validation Loss')  # 红色虚线
+    # 绘制准确率曲线
+    plt.plot(epochs_range, train_acc, 'b-', label='Train Accuracy')  # 蓝色实线
+    plt.plot(epochs_range, val_acc, 'b--', label='Validation Accuracy')  # 蓝色虚线
+    plt.title('Loss and Accuracy per Epoch')
     plt.xlabel('Epochs')
-    plt.ylabel('Loss')
+    plt.ylabel('Value')
     plt.legend()
     plt.grid(True)
-    loss_plot_path = os.path.join(r"checkpoint/", 'img.png')
-    plt.savefig(loss_plot_path)
+    plot_path = os.path.join(r"checkpoint/", 'img.png')
+    plt.savefig(plot_path)
     plt.show()
 
 
-def predict(num_images_to_show=5):
+def predict(args):
     """
     模型预测函数。
     加载训练好的模型，并使用测试生成器生成测试数据进行预测，
@@ -105,11 +133,11 @@ def predict(num_images_to_show=5):
 
     :return: None
     """
-    args = build_args()
     aug = Augmentation()
     model = load_model('checkpoint/final_model.keras')
     # 获取测试目录中的图像文件列表
     test_path = args['test']
+    num_images_to_show = args['number']
     num_images_to_show = 5 if num_images_to_show > 30 else num_images_to_show
     num = sorted(random.sample(range(0, 30), num_images_to_show))
     test_generator_ = aug.test_generator(test_path, num=num)

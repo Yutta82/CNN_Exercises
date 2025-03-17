@@ -1,4 +1,5 @@
 # 导入必要的库
+import argparse
 import os
 from pathlib import Path
 
@@ -26,6 +27,18 @@ color = sns.color_palette()
 
 # 打印输入目录中的文件
 print(os.listdir("./input"))
+
+
+def load_config():
+    # 创建命令行参数解析器
+    parser = argparse.ArgumentParser(description="中文字符识别参数配置")
+    # 添加运行模式参数
+    parser.add_argument('--mode', type=str, choices=['train', 'validation', 'inference'],
+                        default='train',
+                        help='运行模式，覆盖配置文件中的 mode')
+    # 解析命令行参数
+    args = parser.parse_args()
+    return args
 
 
 def set_random_seed():
@@ -296,7 +309,8 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
         train_gen,
         steps_per_epoch=len(train_data) // batch_size,
         epochs=epochs,
-        validation_data=(valid_data, valid_labels),  # 训练时不验证
+        validation_data=(valid_data, valid_labels),
+        validation_batch_size=len(valid_data) // batch_size,
         callbacks=[model_checkpoint]  # 在回调时保存模型
     )
 
@@ -424,19 +438,14 @@ def main():
     Returns:
         无返回值。
     """
-    mode = 'predict'
+    args = load_config()
+    mode = args.mode
     # 设置随机种子
     set_random_seed()
     # 定义数据目录路径
     data_dir = Path('./dataset')
     # 加载数据
     train_data, valid_data, valid_labels, test_data, test_labels = load_data(data_dir)
-    # print("验证样本总数: ", valid_data.shape)
-    # print("标签总数: ", valid_labels.shape)
-    # print("测试样本总数: ", test_data.shape)
-    # print("标签总数: ", test_labels.shape)
-    # 可视化训练数据
-    # visualize_data(train_data)
 
     if mode == 'train':
         # 构建并显示模型

@@ -4,11 +4,12 @@ from utils.run import *
 
 @display_time(text="total consume")
 def main():
-    mode = 'predict'
+    args = build_args()
+    mode = args['mode']
     if mode == 'train':
-        train()
+        train(args)
     elif mode == 'predict':
-        predict()
+        predict(args)
 
 
 if __name__ == '__main__':

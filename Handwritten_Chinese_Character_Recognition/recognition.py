@@ -24,7 +24,7 @@ def load_config():
     # 添加配置文件路径参数
     parser.add_argument('--config', type=str, default='config.json', help='配置文件路径')
     # 添加运行模式参数
-    parser.add_argument('--mode', type=str, choices=['train', 'validation', 'inference'],
+    parser.add_argument('--mode', type=str, choices=['train', 'validation', 'predict'], default='train',
                         help='运行模式，覆盖配置文件中的 mode')
     # 解析命令行参数
     args = parser.parse_args()
@@ -202,7 +202,7 @@ def train():
     callbacks = [
         # 模型检查点保存
         ModelCheckpoint(
-            filepath=os.path.join(ARGS.checkpoint_dir, 'model-{epoch:02d}.keras'),
+            filepath=os.path.join(ARGS.checkpoint_dir, 'final_model.keras'),
             monitor='accuracy',
             mode='max',  # 选择最高的准确率
             verbose=1,  # 训练过程中输出日志
@@ -263,14 +263,14 @@ def validation():
     test_dataset = test_feeder.input_pipeline(batch_size=128)
 
     # 加载训练好的模型
-    model = load_model(os.path.join(ARGS.checkpoint_dir, 'model-01.keras'))
+    model = load_model(os.path.join(ARGS.checkpoint_dir, 'final_model.keras'))
     # 评估模型性能
     results = model.evaluate(test_dataset)
     # 记录评估结果
     print(f'Validation loss: {results[0]}, accuracy: {results[1]}')
 
 
-def inference():
+def predict():
     """执行推理预测
 
     Args:
@@ -300,7 +300,7 @@ def inference():
         image_set.append(temp_image)
 
     # 加载训练好的模型
-    model = load_model(os.path.join(ARGS.checkpoint_dir, 'model-01.keras'))
+    model = load_model(os.path.join(ARGS.checkpoint_dir, 'final_model.keras'))
     # 批量预测
     predictions = model.predict(np.vstack(image_set))
     # 输出预测结果
@@ -362,7 +362,7 @@ def main():
         validation()
     elif ARGS.mode == 'inference':
         # 执行推理
-        inference()
+        predict()
 
 
 if __name__ == "__main__":
