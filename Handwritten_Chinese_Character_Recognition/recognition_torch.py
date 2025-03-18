@@ -324,7 +324,6 @@ def predict():
     """执行推理预测
 
     Args:
-        input_list (list): 图像路径列表
 
     Returns:
         list: 预测结果列表
@@ -361,6 +360,53 @@ def predict():
             candidate3 = top3_indices[2]
             print(
                 f'[Result] Image: {input_list[i]}, Predict: {label_dict[candidate1]} {label_dict[candidate2]} {label_dict[candidate3]}, Most Likely: {label_dict[candidate1]}')
+
+
+def predict1():
+    """
+    在手写汉字数据集中查找特定汉字
+    Return:
+         None
+    """
+    print('Inference')
+    label_dict = get_label_dict()
+
+    # 指定数据集路径
+    dataset_path = "./dataset/test"
+    image_set = []
+    # 遍历 dataset/test 下的所有文件夹
+    for folder_name in os.listdir(dataset_path):
+        folder_path = os.path.join(dataset_path, folder_name)
+
+        # 确保是文件夹
+        if os.path.isdir(folder_path):
+            files = os.listdir(folder_path)  # 获取文件夹下的所有文件
+            if files:  # 确保文件夹不为空
+                first_file = files[0]  # 取第一个文件
+                image_path = os.path.join(folder_path, first_file)
+                temp_image = Image.open(image_path).convert('L')
+                temp_image = temp_image.resize((ARGS.image_size, ARGS.image_size), Image.LANCZOS)
+                temp_image = np.array(temp_image, dtype=np.float32) / 255.0
+                temp_image = np.expand_dims(temp_image, axis=0)  # (1, H, W)
+                temp_image = torch.tensor(temp_image, dtype=torch.float32)
+                temp_image = temp_image.unsqueeze(0)  # (1, 1, H, W)
+                image_set.append(temp_image)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = build_model().to(device)
+    model.load_state_dict(torch.load(os.path.join(ARGS.checkpoint_dir, 'final_model.pth'), map_location=device))
+    model.eval()
+
+    with torch.no_grad():
+        for i, image in enumerate(image_set):
+            image = image.to(device)
+            output = model(image)
+            prob = output.squeeze(0).cpu().numpy()
+            top1_indices = np.argsort(prob)[-1:][0]
+            char = label_dict[top1_indices]
+            print(f"{i}:{char}")
+            if char == '一':
+                break
 
 
 def get_label_dict():
