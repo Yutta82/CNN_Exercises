@@ -64,7 +64,7 @@ class DataIterator(Dataset):
         """
         # 生成字符集截断路径（例如：data_dir + "03755"）
         truncate_path = data_dir + ('%05d' % ARGS.charset_size)
-        print(truncate_path)
+        # print(truncate_path)
 
         # 初始化图像路径列表
         self.image_names = []
@@ -222,7 +222,7 @@ def train():
 
         for images, labels in train_loader:
             images = images.to(device)
-            labels = torch.tensor(labels, dtype=torch.long).to(device)
+            labels = torch.as_tensor(labels, dtype=torch.long, device=device)  # 避免用户警告
             optimizer.zero_grad()
             outputs = model(images)
             # 由于模型输出已经过 softmax，因此取 log 再计算 NLLLoss
@@ -248,7 +248,7 @@ def train():
         with torch.no_grad():
             for images, labels in test_loader:
                 images = images.to(device)
-                labels = torch.tensor(labels, dtype=torch.long).to(device)
+                labels = torch.as_tensor(labels, dtype=torch.long, device=device)  # 避免用户警告
                 outputs = model(images)
                 loss_val = criterion(torch.log(outputs), labels)
                 val_loss += loss_val.item() * images.size(0)
@@ -266,6 +266,7 @@ def train():
         if epoch_acc > best_acc:
             best_acc = epoch_acc
             torch.save(model.state_dict(), os.path.join(ARGS.checkpoint_dir, 'final_model.pth'))
+            print("Save the better model to " + os.path.join(ARGS.checkpoint_dir, 'final_model.pth'))
             wait = 0  # 早停等待次数归零
         else:
             wait += 1
@@ -276,15 +277,13 @@ def train():
     # 绘制损失和准确率曲线（在同一张图中）
     plt.figure(figsize=(8, 6))
     plt.plot(epochs_range, loss_history, 'r-', label='Train Loss')
-    plt.plot(epochs_range, val_loss_history, 'r--', label='Validation Loss')
     plt.plot(epochs_range, train_acc_history, 'b-', label='Train Accuracy')
-    plt.plot(epochs_range, val_acc_history, 'b--', label='Validation Accuracy')
     plt.xlabel('Epochs')
     plt.ylabel('Value')
     plt.title('Training & Validation Loss and Accuracy')
     plt.legend()
     plt.grid(True)
-    plot_path = os.path.join(ARGS.checkpoint_dir, 'img.png')
+    plot_path = os.path.join(ARGS.checkpoint_dir, 'img_torch.png')
     plt.savefig(plot_path)
     print(f"Training curve saved to {plot_path}")
     plt.show()

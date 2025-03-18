@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import tensorflow as tf
 # PyTorch 相关导入
 import torch
 import torch.nn as nn
@@ -66,7 +65,6 @@ def set_random_seed():
     """
     os.environ['PYTHONHASHSEED'] = '0'
     np.random.seed(111)
-    tf.random.set_seed(111)
     random.seed(111)
     torch.manual_seed(111)
     if torch.cuda.is_available():
@@ -459,6 +457,7 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
         # 保存表现最佳的模型（按验证准确率）
         if epoch_val_acc >= max(val_acc_history):
             torch.save(model.state_dict(), os.path.join(r'./checkpoint', 'final_model.pth'))
+            print("Save the better model to " + os.path.join(r'./checkpoint', 'final_model.pth'))
 
     epochs_range = range(1, len(loss_history) + 1)
     plt.figure(figsize=(8, 6))
@@ -469,7 +468,7 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
     plt.title('Training & Validation Loss and Accuracy')
     plt.legend()
     plt.grid(True)
-    plot_path = os.path.join(r"./checkpoint", 'img.png')
+    plot_path = os.path.join(r"./checkpoint", 'img_torch.png')
     plt.savefig(plot_path)
     print(f"Training curve saved to {plot_path}")
     plt.show()
