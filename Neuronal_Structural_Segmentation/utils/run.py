@@ -11,7 +11,7 @@ from keras.callbacks import ModelCheckpoint
 from keras.models import load_model
 
 from Neuronal_Structural_Segmentation.utils.augmentation import Augmentation
-from Neuronal_Structural_Segmentation.utils.model import *
+from Neuronal_Structural_Segmentation.utils.model import u_net
 
 
 def build_args():

@@ -1,5 +1,5 @@
-from utils.decorator_time import display_time
-from utils.run import *
+from Neuronal_Structural_Segmentation.utils.decorator_time import display_time
+from Neuronal_Structural_Segmentation.utils.run import *
 
 
 @display_time(text="total consume")

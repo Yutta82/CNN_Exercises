@@ -316,21 +316,14 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
 
     # 获取 loss 和 accuracy 数据
     train_loss = history.history['loss']
-    val_loss = history.history['val_loss']
     train_acc = history.history['accuracy']
-    val_acc = history.history['val_accuracy']
     epochs_range = range(1, epochs + 1)
-
     # 绘制 loss 和 accuracy 曲线
     plt.figure(figsize=(8, 6))
-
     # 绘制 loss 相关曲线
     plt.plot(epochs_range, train_loss, 'r-', label='Train Loss')  # 红色实线
-    plt.plot(epochs_range, val_loss, 'r--', label='Val Loss')  # 红色虚线
-
     # 绘制 accuracy 相关曲线
     plt.plot(epochs_range, train_acc, 'b-', label='Train Accuracy')  # 蓝色实线
-    plt.plot(epochs_range, val_acc, 'b--', label='Val Accuracy')  # 蓝色虚线
 
     # 设置图例、标题和坐标轴标签
     plt.legend()
@@ -452,7 +445,7 @@ def main():
         model = build_model()
         # model.summary()
         # 编译和训练模型
-        compile_and_train(model, train_data, valid_data, valid_labels, batch_size=16, epochs=10)
+        compile_and_train(model, train_data, valid_data, valid_labels, batch_size=16, epochs=5)
     elif mode == 'validate':
         model = load_model(r'./checkpoint/final_model.keras')
         # 评估模型
