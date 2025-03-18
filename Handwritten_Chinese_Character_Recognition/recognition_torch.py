@@ -276,7 +276,7 @@ def train():
 
     # 绘制损失和准确率曲线（在同一张图中）
     plt.figure(figsize=(8, 6))
-    plt.plot(epochs_range, loss_history, 'r-', label='Train Loss')
+    plt.plot(epochs_range, val_loss_history, 'r-', label='Val Loss')
     plt.plot(epochs_range, train_acc_history, 'b-', label='Train Accuracy')
     plt.xlabel('Epochs')
     plt.ylabel('Value')
