@@ -465,7 +465,7 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
     plt.plot(epochs_range, train_acc_history, 'b-', label='Train Accuracy')
     plt.xlabel('Epochs')
     plt.ylabel('Value')
-    plt.title('Training & Validation Loss and Accuracy')
+    plt.title('Pneumonia_Diagnosis Training & Validation Loss and Accuracy')
     plt.legend()
     plt.grid(True)
     plot_path = os.path.join(r"./checkpoint", 'img_torch.png')
