@@ -33,9 +33,10 @@ def load_config():
     # 创建命令行参数解析器
     parser = argparse.ArgumentParser(description="中文字符识别参数配置")
     # 添加运行模式参数
-    parser.add_argument('--mode', type=str, choices=['train', 'validation', 'inference'],
-                        default='train',
+    parser.add_argument('--mode', type=str, choices=['train', 'validation', 'predict'],
+                        default='predict',
                         help='运行模式，覆盖配置文件中的 mode')
+    parser.add_argument('--epochs', required=False, type=int, default=5, help='epochs for train model')
     # 解析命令行参数
     args = parser.parse_args()
     return args

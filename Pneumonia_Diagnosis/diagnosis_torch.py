@@ -39,7 +39,7 @@ def to_categorical(y, num_classes):
     return np.eye(num_classes, dtype=np.float32)[y]
 
 
-def load_config():
+def load_args():
     """
     加载命令行参数配置。
 
@@ -49,9 +49,10 @@ def load_config():
     # 创建命令行参数解析器
     parser = argparse.ArgumentParser(description="中文字符识别参数配置")
     # 添加运行模式参数
-    parser.add_argument('--mode', type=str, choices=['train', 'validation', 'inference'],
+    parser.add_argument('--mode', type=str, choices=['train', 'validation', 'predict'],
                         default='train',
                         help='运行模式，覆盖配置文件中的 mode')
+    parser.add_argument('--epochs', required=False, type=int, default=5, help='epochs for train model')
     # 解析命令行参数
     args = parser.parse_args()
     return args
@@ -612,15 +613,16 @@ def main():
     Returns:
         None
     """
-    args = load_config()
+    args = load_args()
     mode = args.mode
+    epochs = args.epochs
     set_random_seed()
     data_dir = Path('./dataset')
     train_data, valid_data, valid_labels, test_data, test_labels = load_data(data_dir)
 
     if mode == 'train':
         model = build_model()
-        compile_and_train(model, train_data, valid_data, valid_labels, batch_size=16, epochs=5)
+        compile_and_train(model, train_data, valid_data, valid_labels, batch_size=16, epochs=epochs)
     elif mode == 'validate':
         model = build_model()
         model.load_state_dict(
@@ -632,3 +634,9 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # import netron
+    # myNet = build_model()  # 实例化 resnet18
+    # x = torch.randn(1, 3, 224, 224)  # 随机生成一个输入
+    # modelData = r"checkpoint/demo.pth"  # 定义模型数据保存的路径
+    # torch.onnx.export(myNet, x, modelData)  # 将 pytorch 模型以 onnx 格式导出并保存
+    # netron.start(modelData)  # 输出网络结构

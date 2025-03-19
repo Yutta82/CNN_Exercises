@@ -132,6 +132,7 @@ def train(args):
             if not os.path.exists('checkpoint'):
                 os.makedirs('checkpoint')
             torch.save(model.state_dict(), r'checkpoint/final_model.pth')
+            print("Save the better model to checkpoint/final_model.pth")
 
     epochs_range = range(1, num_epochs + 1)
     plt.figure(figsize=(8, 6))
@@ -139,13 +140,14 @@ def train(args):
     plt.plot(epochs_range, val_losses, 'r--', label='Validation Loss')
     plt.plot(epochs_range, train_accuracies, 'b-', label='Train Accuracy')
     plt.plot(epochs_range, val_accuracies, 'b--', label='Validation Accuracy')
-    plt.title('Loss and Accuracy per Epoch')
+    plt.title('Neuronal_Structural_Segmentation Loss and Accuracy per Epoch')
     plt.xlabel('Epochs')
     plt.ylabel('Value')
     plt.legend()
     plt.grid(True)
     plot_path = os.path.join("checkpoint", "img.png")
     plt.savefig(plot_path)
+    print(f"Training curve saved to {plot_path}")
     plt.show()
 
 

@@ -450,3 +450,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # import netron
+    # myNet = build_model()  # 实例化 resnet18
+    # x = torch.randn(1, 1, 64, 64)  # 随机生成一个输入
+    # modelData = r"checkpoint/demo.pth"  # 定义模型数据保存的路径
+    # torch.onnx.export(myNet, x, modelData)  # 将 pytorch 模型以 onnx 格式导出并保存
+    # netron.start(modelData)  # 输出网络结构
