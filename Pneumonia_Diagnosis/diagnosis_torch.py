@@ -566,13 +566,11 @@ def predict():
         for i, pred in enumerate(outputs_prob):
             top3_indices = np.argsort(pred)[-3:][::-1]
             top3_values = pred[top3_indices]
-            print(f'Image: {input_list[i]}, Top 3 predictions: {top3_indices}, Values: {top3_values}')
+            print(f'Image: {input_list[i]}, \nPredictions: {top3_indices}, \nValues: {top3_values}')
             candidate1 = top3_indices[0]
             candidate2 = top3_indices[1]
-            candidate3 = top3_indices[2]
             print(f'[Result] Image: {input_list[i]}, '
-                  f'Predict: {label_dict[candidate1]} {label_dict[candidate2]} {label_dict[candidate3]}, '
-                  f'Most Likely: {label_dict[candidate1]}')
+                  f'Predict: {label_dict[candidate1]}')
 
 
 def get_label_dict():
@@ -628,7 +626,7 @@ def main():
         model.load_state_dict(
             torch.load(os.path.join('./checkpoint', 'final_model.pth'), map_location=torch.device("cpu")))
         validate_model(model, test_data, test_labels)
-    elif mode == 'inference':
+    elif mode == 'predict':
         predict()
 
 
