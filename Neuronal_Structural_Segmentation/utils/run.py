@@ -68,7 +68,7 @@ def train(args):
         train_path=args['train'],  # 训练数据根目录（注意：此处传入的是列表，需确保目录结构匹配）
         images_folder='images',  # 存放原始图像的文件夹名称
         masks_folder='labels',  # 存放 mask 图像的文件夹名称
-        aug_dict=data_gen_args,  # 数据增强参数字典
+        aug_dict=data_gen_args,  # 数据增强参数mo字典
         save_to_dir=None  # 不保存增强后的图像
     )
 

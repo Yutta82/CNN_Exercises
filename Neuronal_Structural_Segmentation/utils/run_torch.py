@@ -30,7 +30,7 @@ def build_args():
 
 def train(args):
     """
-    模型训练函数。
+    模型训练函数，同时记录 Dice 系数曲线。
     """
     data_gen_args = dict(
         rotation_range=0.2,
@@ -75,12 +75,16 @@ def train(args):
     val_losses = []
     train_accuracies = []
     val_accuracies = []
+    train_dices = []
+    val_dices = []
+    epsilon = 1e-7  # 防止除零
 
     for epoch in range(num_epochs):
         model.train()
         epoch_loss = 0.0
         correct = 0
         total = 0
+        dice_sum = 0.0  # 记录训练集每个 batch 的 Dice 和
         for step in range(steps_per_epoch):
             batch = next(train_gen)
             images, masks = batch
@@ -95,15 +99,25 @@ def train(args):
             preds = (outputs > 0.5).float()
             correct += (preds == masks).sum().item()
             total += masks.numel()
+
+            # 计算当前 batch 的 Dice 系数
+            intersection = (preds * masks).sum().item()
+            dice = (2 * intersection) / (preds.sum().item() + masks.sum().item() + epsilon)
+            dice_sum += dice
+
         train_loss = epoch_loss / steps_per_epoch
         train_acc = correct / total
+        train_dice = dice_sum / steps_per_epoch
+
         train_losses.append(train_loss)
         train_accuracies.append(train_acc)
+        train_dices.append(train_dice)
 
         model.eval()
         val_epoch_loss = 0.0
         correct_val = 0
         total_val = 0
+        dice_val_sum = 0.0
         with torch.no_grad():
             for step in range(val_steps):
                 batch = next(val_gen)
@@ -116,16 +130,25 @@ def train(args):
                 preds = (outputs > 0.5).float()
                 correct_val += (preds == masks).sum().item()
                 total_val += masks.numel()
+                intersection_val = (preds * masks).sum().item()
+                dice_val = (2 * intersection_val) / (preds.sum().item() + masks.sum().item() + epsilon)
+                dice_val_sum += dice_val
+
         val_loss = val_epoch_loss / val_steps
         val_acc = correct_val / total_val
+        val_dice = dice_val_sum / val_steps
+
         val_losses.append(val_loss)
         val_accuracies.append(val_acc)
+        val_dices.append(val_dice)
 
         print(f"Epoch {epoch + 1}/{num_epochs}, "
               f"Train Loss: {train_loss:.4f}, "
               f"Train Acc: {train_acc:.4f}, "
+              f"Train Dice: {train_dice:.4f}, "
               f"Val Loss: {val_loss:.4f}, "
-              f"Val Acc: {val_acc:.4f}")
+              f"Val Acc: {val_acc:.4f}, "
+              f"Val Dice: {val_dice:.4f}")
 
         if train_loss < best_loss:
             best_loss = train_loss
@@ -135,16 +158,32 @@ def train(args):
             print("Save the better model to checkpoint/final_model.pth")
 
     epochs_range = range(1, num_epochs + 1)
-    plt.figure(figsize=(8, 6))
-    plt.plot(epochs_range, train_losses, 'r-', label='Train Loss')
-    plt.plot(epochs_range, val_losses, 'r--', label='Validation Loss')
-    plt.plot(epochs_range, train_accuracies, 'b-', label='Train Accuracy')
-    plt.plot(epochs_range, val_accuracies, 'b--', label='Validation Accuracy')
-    plt.title('Neuronal_Structural_Segmentation Loss and Accuracy per Epoch')
-    plt.xlabel('Epochs')
-    plt.ylabel('Value')
-    plt.legend()
+    fig, ax1 = plt.subplots(figsize=(10, 8))
+
+    # 绘制 Loss 曲线（左侧 y 轴）
+    ax1.plot(epochs_range, train_losses, 'r-', label='Train Loss')
+    ax1.plot(epochs_range, val_losses, 'r--', label='Validation Loss')
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Loss', color='r')
+    ax1.tick_params(axis='y', labelcolor='r')
+
+    # 创建共享 x 轴的右侧 y 轴，显示 Accuracy 和 Dice 曲线
+    ax2 = ax1.twinx()
+    ax2.plot(epochs_range, train_accuracies, 'b-', label='Train Accuracy')
+    ax2.plot(epochs_range, val_accuracies, 'b--', label='Validation Accuracy')
+    ax2.plot(epochs_range, train_dices, 'g-', label='Train Dice')
+    ax2.plot(epochs_range, val_dices, 'g--', label='Validation Dice')
+    ax2.set_ylabel('Accuracy / Dice', color='b')
+    ax2.tick_params(axis='y', labelcolor='b')
+
+    # 合并两个轴的图例
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper center', ncol=2)
+
+    plt.title('Neuronal_Structural_Segmentation: Loss, Accuracy and Dice per Epoch')
     plt.grid(True)
+    plt.tight_layout()
     plot_path = os.path.join("checkpoint", "img.png")
     plt.savefig(plot_path)
     print(f"Training curve saved to {plot_path}")

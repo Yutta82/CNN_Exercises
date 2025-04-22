@@ -298,77 +298,63 @@ def build_model():
         内部 CNN 模型类，与原 Keras 模型结构对应。
         """
 
-        def __init__(self):
+        def __init__(self, num_classes=2):
             super(CNNModel, self).__init__()
-            self.Conv1_1 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
-            self.Conv1_2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
-            self.pool1 = nn.MaxPool2d(2, stride=2)
-
-            self.Conv2_1 = SeparableConv2d(64, 128, kernel_size=3, padding=1)
-            self.Conv2_2 = SeparableConv2d(128, 128, kernel_size=3, padding=1)
-            self.pool2 = nn.MaxPool2d(2, stride=2)
-
-            self.Conv3_1 = SeparableConv2d(128, 256, kernel_size=3, padding=1)
-            self.bn1 = nn.BatchNorm2d(256)
-            self.Conv3_2 = SeparableConv2d(256, 256, kernel_size=3, padding=1)
-            self.bn2 = nn.BatchNorm2d(256)
-            self.Conv3_3 = SeparableConv2d(256, 256, kernel_size=3, padding=1)
-            self.pool3 = nn.MaxPool2d(2, stride=2)
-
-            self.Conv4_1 = SeparableConv2d(256, 512, kernel_size=3, padding=1)
-            self.bn3 = nn.BatchNorm2d(512)
-            self.Conv4_2 = SeparableConv2d(512, 512, kernel_size=3, padding=1)
-            self.bn4 = nn.BatchNorm2d(512)
-            self.Conv4_3 = SeparableConv2d(512, 512, kernel_size=3, padding=1)
-            self.pool4 = nn.MaxPool2d(2, stride=2)
-
-            self.flatten = nn.Flatten()
-            # 输入尺寸224经过4次池化变为14x14，通道数为512
-            self.fc1 = nn.Linear(512 * 14 * 14, 1024)
-            self.dropout1 = nn.Dropout(0.7)
-            self.fc2 = nn.Linear(1024, 512)
-            self.dropout2 = nn.Dropout(0.5)
-            self.fc3 = nn.Linear(512, 2)
+            # 特征提取部分
+            self.features = nn.Sequential(
+                # Block 1
+                nn.Conv2d(3, 64, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(64, 64, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=2, stride=2),
+                # Block 2
+                nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(128, 128, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=2, stride=2),
+                # Block 3
+                nn.Conv2d(128, 256, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(256, 256, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(256, 256, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=2, stride=2),
+                # Block 4
+                nn.Conv2d(256, 512, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(512, 512, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(512, 512, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=2, stride=2),
+                # Block 5
+                nn.Conv2d(512, 512, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(512, 512, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(512, 512, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(kernel_size=2, stride=2)
+            )
+            # 分类器部分
+            self.classifier = nn.Sequential(
+                nn.Linear(512 * 7 * 7, 4096),
+                nn.ReLU(inplace=True),
+                nn.Dropout(),
+                nn.Linear(4096, 4096),
+                nn.ReLU(inplace=True),
+                nn.Dropout(),
+                nn.Linear(4096, num_classes)
+            )
 
         def forward(self, x):
-            """
-            前向传播。
-
-            Args:
-                x (torch.Tensor): 输入张量，形状 (batch, 3, 224, 224)。
-
-            Returns:
-                torch.Tensor: 输出 logits，形状 (batch, 2)。
-            """
-            x = torch.relu(self.Conv1_1(x))
-            x = torch.relu(self.Conv1_2(x))
-            x = self.pool1(x)
-
-            x = torch.relu(self.Conv2_1(x))
-            x = torch.relu(self.Conv2_2(x))
-            x = self.pool2(x)
-
-            x = torch.relu(self.Conv3_1(x))
-            x = self.bn1(x)
-            x = torch.relu(self.Conv3_2(x))
-            x = self.bn2(x)
-            x = torch.relu(self.Conv3_3(x))
-            x = self.pool3(x)
-
-            x = torch.relu(self.Conv4_1(x))
-            x = self.bn3(x)
-            x = torch.relu(self.Conv4_2(x))
-            x = self.bn4(x)
-            x = torch.relu(self.Conv4_3(x))
-            x = self.pool4(x)
-
-            x = self.flatten(x)
-            x = torch.relu(self.fc1(x))
-            x = self.dropout1(x)
-            x = torch.relu(self.fc2(x))
-            x = self.dropout2(x)
-            x = self.fc3(x)
-            # 注意：不在此处使用 softmax，因为 CrossEntropyLoss 要求原始 logits
+            x = self.features(x)
+            # 展平成 (batch_size, 512*7*7)
+            x = torch.flatten(x, 1)
+            x = self.classifier(x)
             return x
 
     return CNNModel()
@@ -463,9 +449,12 @@ def compile_and_train(model, train_data, valid_data, valid_labels, batch_size, e
     epochs_range = range(1, len(loss_history) + 1)
     plt.figure(figsize=(8, 6))
     plt.plot(epochs_range, loss_history, 'r-', label='Train Loss')
+    plt.plot(epochs_range, val_loss_history, 'r--', label='Val Loss')
     plt.plot(epochs_range, train_acc_history, 'b-', label='Train Accuracy')
+    plt.plot(epochs_range, val_acc_history, 'b--', label='Val Accuracy')
     plt.xlabel('Epochs')
     plt.ylabel('Value')
+    plt.ylim(0, 1.2)  # 固定纵轴范围在 0 到 1.2
     plt.title('Pneumonia_Diagnosis Training & Validation Loss and Accuracy')
     plt.legend()
     plt.grid(True)
@@ -611,7 +600,7 @@ def main():
     Returns:
         None
     """
-    args = load_args()
+    args =  load_args()
     mode = args.mode
     epochs = args.epochs
     set_random_seed()

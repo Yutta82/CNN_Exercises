@@ -70,6 +70,7 @@ def u_net(input_size=(256, 256, 1)):
             # 解码器部分
             self.up6 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
             self.conv6 = nn.Sequential(
+                # 双线性插值不会改变通道数，所以up6仍是1024通道，跳跃连接后为1024+512=1536通道
                 nn.Conv2d(1536, 512, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
                 nn.BatchNorm2d(512),
